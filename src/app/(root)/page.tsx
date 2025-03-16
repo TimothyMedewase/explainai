@@ -7,7 +7,6 @@ export default function Home() {
     <div className="m-8">
       <div className="flex col-span-2 m-4 border rounded-xl shadow-sm p-4 ">
         <FileUploads />
-        <CardWithForm />
       </div>
       <div className="m-4">
         <TextArea />
