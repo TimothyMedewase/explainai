@@ -23,7 +23,7 @@ export const NavbarUI = () => {
         <Link href="/" className=" mx-8 py-4 text-3xl font-extrabold">
           ExplainAI
         </Link>
-        <div className="flex items-center gap-4 mx-4">
+        <div className="flex items-center gap-4 mx-4 ">
           <ModeToggle />
           <div>
             <SignedOut>
@@ -37,7 +37,9 @@ export const NavbarUI = () => {
               </div>
             </SignedOut>
             <SignedIn>
-              <UserButton />
+              <div className="mt-2">
+                <UserButton />
+              </div>
             </SignedIn>
           </div>
         </div>

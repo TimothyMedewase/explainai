@@ -13,50 +13,20 @@ export default function Footer() {
       <div className=" max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="md:col-span-2 lg:col-span-1">
-            <h3 className="text-lg font-semibold mb-4">About Us</h3>
-            <p className="text-sm">An AI application.</p>
+            <h3 className="text-lg font-semibold mb-4">ExplainAI</h3>
+            <p className="text-sm">
+              An AI application that explains your docs.
+            </p>
           </div>
           <div>
-            <h3 className="text-lg font-semibold mb-4">ExplainAI</h3>
             <ul className="space-y-2">
+              <h3 className="text-lg font-semibold mb-4">Links</h3>
               <li>
                 <Link
                   href="/"
                   className="text-sm hover:text-gray-600 transition-colors"
                 >
                   Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/tracks"
-                  className="text-sm hover:text-gray-600 transition-colors"
-                >
-                  Tracks
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/artistes"
-                  className="text-sm hover:text-gray-600 transition-colors"
-                >
-                  Artistes
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/genres"
-                  className="text-sm hover:text-gray-600 transition-colors"
-                >
-                  Genres
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/recents"
-                  className="text-sm hover:text-gray-600 transition-colors"
-                >
-                  Recents
                 </Link>
               </li>
             </ul>

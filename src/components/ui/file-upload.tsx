@@ -1,7 +1,9 @@
+"use client";
+
 import { cn } from "@/lib/utils";
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "motion/react";
-import { IconUpload } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
 
 const mainVariant = {
@@ -27,41 +29,78 @@ const secondaryVariant = {
 
 export const FileUpload = ({
   onChange,
+  value,
+  onDelete,
+  maxFiles = 5,
 }: {
   onChange?: (files: File[]) => void;
+  value?: File[];
+  onDelete?: (fileIndex: number) => void;
+  maxFiles?: number;
 }) => {
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>(value || []);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (newFiles: File[]) => {
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-    onChange && onChange(newFiles);
+    if (files.length + newFiles.length > maxFiles) {
+      setError(`You can only upload a maximum of ${maxFiles} files`);
+      // Only add files up to the limit
+      const filesToAdd = newFiles.slice(0, maxFiles - files.length);
+      if (filesToAdd.length > 0) {
+        const updatedFiles = [...files, ...filesToAdd];
+        setFiles(updatedFiles);
+        onChange && onChange(updatedFiles);
+      }
+      return;
+    }
+
+    setError(null);
+    const updatedFiles = [...files, ...newFiles];
+    setFiles(updatedFiles);
+    onChange && onChange(updatedFiles);
+  };
+
+  const handleDeleteFile = (index: number) => {
+    const updatedFiles = [...files];
+    updatedFiles.splice(index, 1);
+    setFiles(updatedFiles);
+    onChange && onChange(updatedFiles);
+    onDelete && onDelete(index);
+    setError(null); // Clear any errors when removing files
   };
 
   const handleClick = () => {
+    if (files.length >= maxFiles) {
+      setError(`You can only upload a maximum of ${maxFiles} files`);
+      return;
+    }
     fileInputRef.current?.click();
   };
 
   const { getRootProps, isDragActive } = useDropzone({
-    multiple: false,
+    multiple: true,
     noClick: true,
     onDrop: handleFileChange,
     onDropRejected: (error) => {
       console.log(error);
     },
+    maxFiles: maxFiles - files.length,
   });
+
+  const isMaxFilesReached = files.length >= maxFiles;
 
   return (
     <div className="w-full" {...getRootProps()}>
       <motion.div
-        onClick={handleClick}
-        whileHover="animate"
+        whileHover={!isMaxFilesReached ? "animate" : undefined}
         className="p-10 group/file block rounded-lg cursor-pointer w-full relative overflow-hidden"
       >
         <input
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
+          multiple
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />
@@ -70,11 +109,23 @@ export const FileUpload = ({
         </div>
         <div className="flex flex-col items-center justify-center">
           <p className="relative z-20 font-sans font-bold text-neutral-700 dark:text-neutral-300 text-base">
-            Upload file
+            Upload files ({files.length}/{maxFiles})
           </p>
           <p className="relative z-20 font-sans font-normal text-neutral-400 dark:text-neutral-400 text-base mt-2">
-            Drag or drop your files here or click to upload
+            {files.length === 0
+              ? "Drag or drop your files here or click to upload"
+              : isMaxFilesReached
+              ? "Maximum number of files reached"
+              : "Drag or drop more files here"}
           </p>
+
+          {error && (
+            <div className="mt-2 flex items-center gap-2 text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-md">
+              <IconX className="h-4 w-4" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
           <div className="relative w-full mt-10 max-w-xl mx-auto">
             {files.length > 0 &&
               files.map((file, idx) => (
@@ -95,14 +146,29 @@ export const FileUpload = ({
                     >
                       {file.name}
                     </motion.p>
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      layout
-                      className="rounded-lg px-2 py-1 w-fit shrink-0 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-white shadow-input"
-                    >
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB
-                    </motion.p>
+                    <div className="flex items-center gap-2">
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        layout
+                        className="rounded-lg px-2 py-1 w-fit shrink-0 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-white shadow-input"
+                      >
+                        {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      </motion.p>
+                      <motion.button
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFile(idx);
+                        }}
+                        className="p-1 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-500 dark:text-red-400"
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </motion.button>
+                    </div>
                   </div>
 
                   <div className="flex text-sm md:flex-row flex-col items-start md:items-center w-full mt-2 justify-between text-neutral-600 dark:text-neutral-400">
@@ -126,6 +192,19 @@ export const FileUpload = ({
                   </div>
                 </motion.div>
               ))}
+
+            {files.length > 0 && !isMaxFilesReached && (
+              <motion.button
+                onClick={handleClick}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="mt-4 flex items-center justify-center gap-2 w-full py-3 bg-white dark:bg-neutral-900 border border-dashed border-neutral-300 dark:border-neutral-700 rounded-md text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+              >
+                <IconPlus className="h-4 w-4" />
+                Add additional files ({files.length}/{maxFiles})
+              </motion.button>
+            )}
+
             {!files.length && (
               <motion.div
                 layoutId="file-upload"
@@ -139,6 +218,7 @@ export const FileUpload = ({
                   "relative group-hover/file:shadow-2xl z-40 bg-white dark:bg-neutral-900 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md",
                   "shadow-[0px_10px_50px_rgba(0,0,0,0.1)]"
                 )}
+                onClick={handleClick}
               >
                 {isDragActive ? (
                   <motion.p
