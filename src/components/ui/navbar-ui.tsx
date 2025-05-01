@@ -11,6 +11,7 @@ import {
   SignUpButton,
   SignedOut,
 } from "@clerk/nextjs";
+import Image from "next/image";
 
 import { ModeToggle } from "@/components/ui/mode-toggle";
 
@@ -21,7 +22,7 @@ export const NavbarUI = () => {
     <div>
       <div className=" border-b relative flex items-center justify-between">
         <Link href="/" className=" mx-8 py-4 text-3xl font-extrabold">
-          ExplainAI
+          <Image src="/explain_ai_logo.png" width={45} height={45} alt="logo" />
         </Link>
         <div className="flex items-center gap-4 mx-4 ">
           <ModeToggle />

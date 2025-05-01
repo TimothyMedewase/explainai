@@ -1,4 +1,3 @@
-import { SidebarDemo } from "@/components/app-sidebar";
 import { CardWithForm } from "@/components/Card";
 import { FileUploads } from "@/components/FileUpload";
 import { TextArea } from "@/components/TextArea";

@@ -4,7 +4,6 @@ import type React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import {
   Card,
   CardContent,
@@ -13,6 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { useFiles } from "@/lib/file-context";
+import { _processFiles } from "@/lib/api";
+import { toast } from "sonner";
+import { FormattedResponse } from "@/components/FormattedResponse";
 
 type Message = {
   id: number;
@@ -25,13 +28,19 @@ export function TextArea() {
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { files } = useFiles();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
   };
 
-  const handleExplain = () => {
+  const handleExplain = async () => {
     if (!inputText.trim() || isGenerating) return;
+
+    if (!files.length) {
+      toast.error("Please upload at least one file before asking a question");
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now(),
@@ -41,7 +50,7 @@ export function TextArea() {
 
     const aiMessage: Message = {
       id: Date.now() + 1,
-      text: inputText, // Using the same text for AI response
+      text: "",
       isUser: false,
       isGenerating: true,
     };
@@ -49,15 +58,68 @@ export function TextArea() {
     setMessages((prev) => [...prev, userMessage, aiMessage]);
     setIsGenerating(true);
     setInputText(""); // Clear input after submission
-  };
 
-  const handleGenerationComplete = () => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.isGenerating ? { ...msg, isGenerating: false } : msg
-      )
-    );
-    setIsGenerating(false);
+    try {
+      // Process the files with the query in a single step
+      toast.info("Processing files and generating response...");
+      console.log("Sending files:", files);
+      console.log("Sending query:", inputText);
+
+      const response = await _processFiles(files, inputText);
+      console.log("API Response:", response);
+
+      // Extract the result from the nested response structure
+      let resultText = "Sorry, I couldn't process your query.";
+
+      // Match the specific format returned by the backend:
+      // { "response": { "query": "...", "result": "..." } }
+      if (response && response.response && response.response.result) {
+        resultText = response.response.result;
+      } else if (typeof response === "string") {
+        resultText = response;
+      } else if (response && response.result) {
+        resultText = response.result;
+      } else if (
+        response &&
+        response.response &&
+        typeof response.response === "string"
+      ) {
+        resultText = response.response;
+      } else if (response) {
+        // Fallback: stringify the response for debugging
+        resultText = JSON.stringify(response);
+      }
+
+      // Update the AI message with the response
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessage.id
+            ? {
+                ...msg,
+                text: resultText,
+                isGenerating: false,
+              }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error("Error processing query:", error);
+      // Handle error
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === aiMessage.id
+            ? {
+                ...msg,
+                text: "Sorry, I encountered an error processing your query.",
+                isGenerating: false,
+              }
+            : msg
+        )
+      );
+      toast.error("Error processing your query");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -70,7 +132,8 @@ export function TextArea() {
               {!message.isUser && message.isGenerating && (
                 <CardDescription>
                   <span className="flex items-center gap-2">
-                    Explaining <Spinner className="h-4 w-4" />
+                    Explaining
+                    <Spinner className="h-4 w-4" />
                   </span>
                 </CardDescription>
               )}
@@ -78,21 +141,22 @@ export function TextArea() {
             <CardContent>
               {message.isUser ? (
                 <p>{message.text}</p>
+              ) : message.isGenerating ? (
+                <div className="flex justify-center py-4">
+                  <Spinner className="h-6 w-6" />
+                </div>
               ) : (
-                <TextGenerateEffect
-                  words={message.text}
-                  onComplete={handleGenerationComplete}
-                />
+                <FormattedResponse content={message.text} />
               )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="sticky bottom-0 p-4  border-t">
+      <div className="sticky bottom-0 p-4 bg-white dark:bg-neutral-900 border-t border-gray-200 dark:border-neutral-700">
         <div className="flex gap-2">
           <Textarea
-            placeholder="Ask me a question..."
+            placeholder="Ask a question..."
             value={inputText}
             onChange={handleInputChange}
             disabled={isGenerating}
@@ -104,13 +168,7 @@ export function TextArea() {
             disabled={!inputText.trim() || isGenerating}
             className="self-end"
           >
-            {isGenerating ? (
-              <span className="flex items-center gap-2">
-                Explaining <Spinner className="h-4 w-4" />
-              </span>
-            ) : (
-              "Explain"
-            )}
+            {isGenerating ? <Spinner className="h-4 w-4" /> : "Explain"}
           </Button>
         </div>
       </div>
