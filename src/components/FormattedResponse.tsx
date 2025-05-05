@@ -11,14 +11,22 @@ const MATH_BLOCK_REGEX = /\$\$([^\$]+)\$\$/g;
 const CODE_BLOCK_REGEX = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
 const TABLE_REGEX = /\|(.+)\|\n\|([-:]+\|)+\n((?:\|.+\|\n)+)/g;
 
+// Enhanced formatting regex patterns
+const NUMBERED_LIST_ITEM_REGEX = /^(\d+)\.\s+(.+)$/gm;
+const BULLET_POINT_REGEX = /^[-*]\s+(.+)$/gm;
+const BOLD_TEXT_REGEX = /\*\*(.+?)\*\*/g;
+const HEADING_REGEX = /^(#+)\s+(.+)$/gm;
+
 interface FormattedResponseProps {
   content: string;
   animateText?: boolean;
+  onAnimationComplete?: () => void;
 }
 
 export function FormattedResponse({
   content,
   animateText = true,
+  onAnimationComplete,
 }: FormattedResponseProps) {
   const [formattedContent, setFormattedContent] = useState<React.ReactNode[]>(
     []
@@ -35,27 +43,72 @@ export function FormattedResponse({
 
   // If we're using animation, wrap the formatted content in TextGenerateEffect
   if (animateText) {
-    return <TextGenerateEffect words={content} />;
+    // Create a custom formatter for animated text that preserves structure
+    const enhancedContent = preformatStructuredContent(content);
+    return (
+      <TextGenerateEffect
+        words={enhancedContent}
+        onComplete={onAnimationComplete}
+      />
+    );
   }
 
   // Otherwise return the formatted content directly
   return <div className="formatted-response">{formattedContent}</div>;
 }
 
+// Helper function to preformat structured content for text animation
+function preformatStructuredContent(content: string): string {
+  // First handle math expressions before other formatting
+  let formattedContent = content
+    // Format block math expressions
+    .replace(MATH_BLOCK_REGEX, (match, formula) => {
+      return `<span class="math-block" data-formula="$$${formula}$$">$$${formula}$$</span>`;
+    })
+    // Format inline math expressions
+    .replace(MATH_INLINE_REGEX, (match, formula) => {
+      return `<span class="math-inline" data-formula="$${formula}$">$${formula}$</span>`;
+    });
+
+  // Then apply HTML formatting to structured content
+  formattedContent = formattedContent
+    // Format numbered lists (1. Item -> HTML ordered list)
+    .replace(/(\d+)\.\s+(.+?)(?=\n\d+\.|$)/g, (match, number, item) => {
+      return `<span class="block my-1"><strong>${number}.</strong> ${item}</span>`;
+    })
+    // Format bullet points
+    .replace(/^[-*]\s+(.+)$/gm, (match, item) => {
+      return `<span class="block my-1">• ${item}</span>`;
+    })
+    // Format bold text
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    // Format simple indentation (for nested lists)
+    .replace(/^(\s{2,})(.+)$/gm, (match, indent, text) => {
+      const indentLevel = Math.floor(indent.length / 2);
+      const paddingLeft = indentLevel * 1.5;
+      return `<span class="block pl-${paddingLeft}">${text}</span>`;
+    });
+
+  return formattedContent;
+}
+
 function formatContent(content: string): React.ReactNode[] {
   // This will hold all our content pieces in order
   const result: React.ReactNode[] = [];
 
-  // First, split content by code blocks, math blocks, and tables to preserve their format
+  // Process the content in stages to handle different formatting needs
+
+  // Stage 1: Extract and format code blocks first
+  let processedContent = content;
   let lastIndex = 0;
   let match;
 
-  // Find and format code blocks
+  // Extract code blocks
   while ((match = CODE_BLOCK_REGEX.exec(content)) !== null) {
     // Add any text before this match
     if (match.index > lastIndex) {
       const textBefore = content.substring(lastIndex, match.index);
-      result.push(formatTextWithInlineMath(textBefore));
+      result.push(formatStructuredText(textBefore));
     }
 
     const language = match[1] || "";
@@ -74,49 +127,152 @@ function formatContent(content: string): React.ReactNode[] {
     lastIndex = match.index + match[0].length;
   }
 
-  // Find and format math blocks
-  let tempContent = content.substring(lastIndex);
-  lastIndex = 0;
-
-  while ((match = MATH_BLOCK_REGEX.exec(tempContent)) !== null) {
-    // Add any text before this match
-    if (match.index > lastIndex) {
-      const textBefore = tempContent.substring(lastIndex, match.index);
-      result.push(formatTextWithInlineMath(textBefore));
-    }
-
-    // Add the math block
-    try {
-      result.push(
-        <div
-          key={`math-block-${match.index}`}
-          className="my-2 flex justify-center"
-        >
-          <BlockMath math={match[1]} />
-        </div>
-      );
-    } catch (error) {
-      // If math parsing fails, render as plain text
-      result.push(
-        <div
-          key={`math-block-error-${match.index}`}
-          className="my-2 bg-red-50 dark:bg-red-900/20 p-2 rounded-md"
-        >
-          <code>{match[0]}</code>
-        </div>
-      );
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add any remaining text
-  if (lastIndex < tempContent.length) {
-    const remainingText = tempContent.substring(lastIndex);
-    result.push(formatTextWithInlineMath(remainingText));
+  // Add any remaining text after code blocks
+  if (lastIndex < content.length) {
+    const remainingText = content.substring(lastIndex);
+    result.push(formatStructuredText(remainingText));
   }
 
   return result;
+}
+
+// Process text with structured formatting (lists, bold text, etc.)
+function formatStructuredText(text: string): React.ReactNode {
+  // Enhanced content parsing - identify different blocks of content
+  const contentBlocks = parseContentBlocks(text);
+
+  return (
+    <div className="space-y-2">
+      {contentBlocks.map((block, index) => {
+        if (block.type === "numbered-list") {
+          // Render numbered list
+          return (
+            <div key={`list-${index}`} className="pl-5 space-y-1">
+              {(block.items as Array<{ number: string; content: string }>).map(
+                (item, itemIndex) => (
+                  <div key={`item-${itemIndex}`} className="flex items-start">
+                    <span className="font-bold mr-2 mt-1">{item.number}.</span>
+                    <div className="flex-1">{formatInlineFormatting(item.content)}</div>
+                  </div>
+                )
+              )}
+            </div>
+          );
+        } else if (block.type === "bullet-list") {
+          // Render bullet list
+          return (
+            <div key={`bullet-${index}`} className="pl-5 space-y-1">
+              {(block.items as Array<string>).map((item, itemIndex) => (
+                <div key={`bullet-${itemIndex}`} className="flex items-start">
+                  <span className="mr-2 mt-1">•</span>
+                  <div className="flex-1">{formatInlineFormatting(item)}</div>
+                </div>
+              ))}
+            </div>
+          );
+        } else {
+          // Render paragraph with inline formatting
+          return (
+            <div key={`para-${index}`} className="mb-4">
+              {formatInlineFormatting(block.content as string)}
+            </div>
+          );
+        }
+      })}
+    </div>
+  );
+}
+
+// Process inline formatting (bold, math, etc.) within text blocks
+function formatInlineFormatting(text: string): React.ReactNode[] {
+  const elements: React.ReactNode[] = [];
+
+  // First handle bold text
+  let lastBoldIndex = 0;
+  let boldMatch;
+  const boldResults: React.ReactNode[] = [];
+
+  // Find bold text patterns
+  while ((boldMatch = BOLD_TEXT_REGEX.exec(text)) !== null) {
+    // Add any text before the bold text
+    if (boldMatch.index > lastBoldIndex) {
+      boldResults.push(
+        formatTextWithInlineMath(text.substring(lastBoldIndex, boldMatch.index))
+      );
+    }
+
+    // Add the bold text
+    boldResults.push(
+      <strong key={`bold-${boldMatch.index}`}>
+        {formatTextWithInlineMath(boldMatch[1])}
+      </strong>
+    );
+
+    lastBoldIndex = boldMatch.index + boldMatch[0].length;
+  }
+
+  // Add any text after the last bold match
+  if (lastBoldIndex < text.length) {
+    boldResults.push(formatTextWithInlineMath(text.substring(lastBoldIndex)));
+  }
+
+  return boldResults.length ? boldResults : [text];
+}
+
+// Helper function to parse content into structured blocks
+function parseContentBlocks(text: string): Array<{
+  type: "numbered-list" | "bullet-list" | "paragraph";
+  items?: Array<{ number: string; content: string }> | Array<string>;
+  content?: string;
+}> {
+  const blocks: Array<{
+    type: "numbered-list" | "bullet-list" | "paragraph";
+    items?: Array<{ number: string; content: string }> | Array<string>;
+    content?: string;
+  }> = [];
+  const lines = text.split("\n");
+  let currentBlock: {
+    type: "numbered-list" | "bullet-list" | "paragraph";
+    items: Array<{ number: string; content: string }> | Array<string>;
+    content?: string;
+  } | null = null;
+
+  lines.forEach((line) => {
+    // Check for numbered list item
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    if (numberedMatch) {
+      if (!currentBlock || currentBlock.type !== "numbered-list") {
+        // Start a new numbered list block
+        currentBlock = { type: "numbered-list", items: [] };
+        blocks.push(currentBlock);
+      }
+      (currentBlock.items as Array<{ number: string; content: string }>).push({
+        number: numberedMatch[1],
+        content: numberedMatch[2],
+      });
+      return;
+    }
+
+    // Check for bullet list item
+    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      if (!currentBlock || currentBlock.type !== "bullet-list") {
+        // Start a new bullet list block
+        currentBlock = { type: "bullet-list", items: [] };
+        blocks.push(currentBlock);
+      }
+      (currentBlock.items as Array<string>).push(bulletMatch[1]);
+      return;
+    }
+
+    // Handle regular paragraph text
+    if (line.trim()) {
+      blocks.push({ type: "paragraph", content: line });
+      currentBlock = null;
+    }
+  });
+
+  return blocks;
 }
 
 // Helper function to handle inline math within text

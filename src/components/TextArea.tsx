@@ -34,6 +34,14 @@ export function TextArea() {
     setInputText(e.target.value);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit when user presses Enter without holding Shift key
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); // Prevent default behavior (new line)
+      handleExplain();
+    }
+  };
+
   const handleExplain = async () => {
     if (!inputText.trim() || isGenerating) return;
 
@@ -142,9 +150,7 @@ export function TextArea() {
               {message.isUser ? (
                 <p>{message.text}</p>
               ) : message.isGenerating ? (
-                <div className="flex justify-center py-4">
-                  <Spinner className="h-6 w-6" />
-                </div>
+                <></>
               ) : (
                 <FormattedResponse content={message.text} />
               )}
@@ -159,6 +165,7 @@ export function TextArea() {
             placeholder="Ask a question..."
             value={inputText}
             onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             disabled={isGenerating}
             className="resize-none"
             rows={2}
