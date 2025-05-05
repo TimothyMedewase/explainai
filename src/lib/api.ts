@@ -7,7 +7,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
  */
 export async function callApi(
   endpoint: string,
-  options = {},
+  options: {
+    headers?: Record<string, string>;
+    method?: string;
+    body?: any;
+  } = {},
   token?: string | null
 ) {
   const defaultOptions = {
