@@ -1,6 +1,6 @@
 # ExplainAI
 
-![ExplainAI Logo](/public/explain_ai_logo.png)
+
 
 ExplainAI is a modern web application that helps users upload documents and get AI-powered explanations. Upload your files and ask questions about them to receive clear, formatted explanations.
 
@@ -110,4 +110,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Contact
 
-Created by [Your Name/Company] - [your.email@example.com]
+Created by Timothy Medewase - medewaset@gmail.com
