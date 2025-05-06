@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ExplainAI
+
+![ExplainAI Logo](/public/explain_ai_logo.png)
+
+ExplainAI is a modern web application that helps users upload documents and get AI-powered explanations. Upload your files and ask questions about them to receive clear, formatted explanations.
+
+## Features
+
+- **Document Uploads**: Easily upload multiple file formats for AI processing
+- **Natural Language Questions**: Ask questions about your documents in plain English
+- **Beautiful Formatted Responses**: Receive well-formatted responses with support for:
+  - Mathematical formulas (via KaTeX)
+  - Code blocks with syntax highlighting
+  - Tables, lists, and other formatted text
+  - Text animation effects
+- **Modern UI**: Built with a clean, responsive design using Tailwind CSS
+- **Dark Mode Support**: Switch between light and dark themes
+- **Authentication**: Secure user authentication via Clerk
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) - React framework for the frontend
+- [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Clerk](https://clerk.com/) - Authentication and user management
+- [KaTeX](https://katex.org/) - Math typesetting
+- [Motion](https://motion.dev/) - Animation library
+- [Radix UI](https://www.radix-ui.com/) - Accessible UI components
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18.x or higher
+- npm, yarn, pnpm, or bun
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   git clone https://your-repository-url/explainai.git
+   cd explainai
+   ```
 
-## Learn More
+2. Install the dependencies
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   # or
+   bun install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Set up environment variables
+   Create a `.env.local` file in the root directory and add:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```
+   NEXT_PUBLIC_API_URL=http://localhost:8000
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   ```
 
-## Deploy on Vercel
+4. Start the development server
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   # or
+   bun dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application
+
+## Usage
+
+1. Sign in using the authentication providers
+2. Upload your documents using the file upload interface
+3. Type a question about your documents in the text area
+4. Receive a formatted explanation from the AI
+
+## Backend Integration
+
+ExplainAI requires a backend API service running on the default endpoint `http://localhost:8000`. The backend should implement:
+
+- `/process` - POST endpoint for processing uploaded files with a text query
+
+## Deployment
+
+The app can be deployed on [Vercel](https://vercel.com/), the creators of Next.js:
+
+1. Push your code to a Git repository (GitHub, GitLab, Bitbucket)
+2. Import your repository to Vercel
+3. Configure your environment variables
+4. Deploy
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[License information]
+
+## Contact
+
+Created by [Your Name/Company] - [your.email@example.com]

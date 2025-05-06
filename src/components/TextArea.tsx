@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -16,6 +17,7 @@ import { useFiles } from "@/lib/file-context";
 import { _processFiles } from "@/lib/api";
 import { toast } from "sonner";
 import { FormattedResponse } from "@/components/FormattedResponse";
+import { Copy } from "lucide-react";
 
 type Message = {
   id: number;
@@ -40,6 +42,19 @@ export function TextArea() {
       e.preventDefault(); // Prevent default behavior (new line)
       handleExplain();
     }
+  };
+
+  // Handle copy to clipboard functionality
+  const handleCopy = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        toast.success("Answer copied to clipboard");
+      })
+      .catch((error) => {
+        console.error("Failed to copy:", error);
+        toast.error("Failed to copy to clipboard");
+      });
   };
 
   const handleExplain = async () => {
@@ -144,6 +159,19 @@ export function TextArea() {
                     <Spinner className="h-4 w-4" />
                   </span>
                 </CardDescription>
+              )}
+              {!message.isUser && !message.isGenerating && (
+                <CardAction>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleCopy(message.text)}
+                    title="Copy to clipboard"
+                    className="hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full h-8 w-8"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </CardAction>
               )}
             </CardHeader>
             <CardContent>
