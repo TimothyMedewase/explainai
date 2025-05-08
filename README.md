@@ -1,7 +1,5 @@
 # ExplainAI
 
-
-
 ExplainAI is a modern web application that helps users upload documents and get AI-powered explanations. Upload your files and ask questions about them to receive clear, formatted explanations.
 
 ## Features
@@ -103,10 +101,6 @@ The app can be deployed on [Vercel](https://vercel.com/), the creators of Next.j
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-[License information]
 
 ## Contact
 
