@@ -37,7 +37,7 @@ ExplainAI is a modern web application that helps users upload documents and get 
 1. Clone the repository
 
    ```bash
-   git clone https://your-repository-url/explainai.git
+   git clone https://github.com/TimothyMedewase/explainai
    cd explainai
    ```
 
