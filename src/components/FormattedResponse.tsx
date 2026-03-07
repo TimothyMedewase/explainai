@@ -185,6 +185,8 @@ function formatStructuredText(text: string): React.ReactNode {
 
 // Process inline formatting (bold, math, etc.) within text blocks
 function formatInlineFormatting(text: string): React.ReactNode[] {
+  BOLD_TEXT_REGEX.lastIndex = 0;
+
   const elements: React.ReactNode[] = [];
 
   // First handle bold text
@@ -236,11 +238,27 @@ function parseContentBlocks(text: string): Array<{
     items: Array<{ number: string; content: string }> | Array<string>;
     content?: string;
   } | null = null;
+  let paragraphBuffer: string[] = [];
+
+  const flushParagraph = () => {
+    const paragraph = paragraphBuffer.join(" ").trim();
+    if (paragraph) {
+      blocks.push({ type: "paragraph", content: paragraph });
+    }
+    paragraphBuffer = [];
+  };
 
   lines.forEach((line) => {
+    if (!line.trim()) {
+      flushParagraph();
+      currentBlock = null;
+      return;
+    }
+
     // Check for numbered list item
     const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
     if (numberedMatch) {
+      flushParagraph();
       if (!currentBlock || currentBlock.type !== "numbered-list") {
         // Start a new numbered list block
         currentBlock = { type: "numbered-list", items: [] };
@@ -256,6 +274,7 @@ function parseContentBlocks(text: string): Array<{
     // Check for bullet list item
     const bulletMatch = line.match(/^[-*]\s+(.+)$/);
     if (bulletMatch) {
+      flushParagraph();
       if (!currentBlock || currentBlock.type !== "bullet-list") {
         // Start a new bullet list block
         currentBlock = { type: "bullet-list", items: [] };
@@ -265,18 +284,20 @@ function parseContentBlocks(text: string): Array<{
       return;
     }
 
-    // Handle regular paragraph text
-    if (line.trim()) {
-      blocks.push({ type: "paragraph", content: line });
-      currentBlock = null;
-    }
+    // Handle regular paragraph text by joining wrapped lines into full sentences.
+    paragraphBuffer.push(line.trim());
+    currentBlock = null;
   });
+
+  flushParagraph();
 
   return blocks;
 }
 
 // Helper function to handle inline math within text
 function formatTextWithInlineMath(text: string): React.ReactNode {
+  MATH_INLINE_REGEX.lastIndex = 0;
+
   if (!text.includes("$")) return text;
 
   const parts: React.ReactNode[] = [];
