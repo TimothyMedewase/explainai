@@ -66,20 +66,18 @@ function buildProcessFormData(files: File[], query: string): FormData {
 function extractResultText(response: any): string {
   let resultText = "Sorry, I couldn't process your query.";
 
-  if (typeof response === "string") {
-    return response;
-  }
-
-  if (response?.response?.result) {
-    resultText = String(response.response.result);
-  } else if (typeof response?.response === "string") {
+  if (response && response.response && response.response.result) {
+    resultText = response.response.result;
+  } else if (typeof response === "string") {
+    resultText = response;
+  } else if (response && response.result) {
+    resultText = response.result;
+  } else if (
+    response &&
+    response.response &&
+    typeof response.response === "string"
+  ) {
     resultText = response.response;
-  } else if (response?.result) {
-    resultText = String(response.result);
-  } else if (response?.content) {
-    resultText = String(response.content);
-  } else if (response?.text) {
-    resultText = String(response.text);
   } else if (response) {
     resultText = JSON.stringify(response);
   }
@@ -103,7 +101,12 @@ function readTextFromChunk(chunk: string): string {
 
     try {
       const parsed = JSON.parse(payload);
-      return extractResultText(parsed);
+      if (typeof parsed === "string") return parsed;
+      if (parsed?.delta) return String(parsed.delta);
+      if (parsed?.content) return String(parsed.content);
+      if (parsed?.text) return String(parsed.text);
+      if (parsed?.response?.result) return String(parsed.response.result);
+      return "";
     } catch {
       return payload;
     }
@@ -111,7 +114,11 @@ function readTextFromChunk(chunk: string): string {
 
   try {
     const parsed = JSON.parse(trimmed);
-    return extractResultText(parsed);
+    if (typeof parsed === "string") return parsed;
+    if (parsed?.delta) return String(parsed.delta);
+    if (parsed?.content) return String(parsed.content);
+    if (parsed?.text) return String(parsed.text);
+    if (parsed?.response?.result) return String(parsed.response.result);
   } catch {
     // chunk may be plain text token data
   }
@@ -177,8 +184,7 @@ export async function _processFilesStream(
       method: "POST",
       body: formData,
       headers: {
-        Accept:
-          "text/event-stream, application/x-ndjson, application/json, text/plain",
+        Accept: "text/event-stream, application/x-ndjson, application/json, text/plain",
       },
     },
     token
@@ -236,20 +242,6 @@ export async function _processFilesStream(
         streamedText = partial.trim();
         onChunk(streamedText);
       }
-    }
-  }
-
-  const normalized = streamedText.trim();
-  if (normalized.startsWith("{") || normalized.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(normalized);
-      const extracted = extractResultText(parsed);
-      if (extracted && extracted !== streamedText) {
-        streamedText = extracted;
-        onChunk(streamedText);
-      }
-    } catch {
-      // keep streamed text when not valid JSON
     }
   }
 
