@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useFiles } from "@/lib/file-context";
-import { _processFiles } from "@/lib/api";
+import { _processFilesStream } from "@/lib/api";
 import { toast } from "sonner";
 import { FormattedResponse } from "@/components/FormattedResponse";
 import { Copy } from "lucide-react";
@@ -83,43 +83,34 @@ export function TextArea() {
     setInputText(""); // Clear input after submission
 
     try {
-      // Process the files with the query in a single step
       toast.info("Processing files and generating response...");
       console.log("Sending files:", files);
       console.log("Sending query:", inputText);
 
-      const response = await _processFiles(files, inputText);
-      console.log("API Response:", response);
+      let lastChunk = "";
+      const finalText = await _processFilesStream(files, inputText, (partialText) => {
+        lastChunk = partialText;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessage.id
+              ? {
+                  ...msg,
+                  text: partialText,
+                  isGenerating: true,
+                }
+              : msg
+          )
+        );
+      });
 
-      // Extract the result from the nested response structure
-      let resultText = "Sorry, I couldn't process your query.";
+      const completedText = finalText || lastChunk || "Sorry, I couldn't process your query.";
 
-      // Match the specific format returned by the backend:
-      // { "response": { "query": "...", "result": "..." } }
-      if (response && response.response && response.response.result) {
-        resultText = response.response.result;
-      } else if (typeof response === "string") {
-        resultText = response;
-      } else if (response && response.result) {
-        resultText = response.result;
-      } else if (
-        response &&
-        response.response &&
-        typeof response.response === "string"
-      ) {
-        resultText = response.response;
-      } else if (response) {
-        // Fallback: stringify the response for debugging
-        resultText = JSON.stringify(response);
-      }
-
-      // Update the AI message with the response
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === aiMessage.id
             ? {
                 ...msg,
-                text: resultText,
+                text: completedText,
                 isGenerating: false,
               }
             : msg
@@ -177,8 +168,6 @@ export function TextArea() {
             <CardContent>
               {message.isUser ? (
                 <p>{message.text}</p>
-              ) : message.isGenerating ? (
-                <></>
               ) : (
                 <FormattedResponse content={message.text} />
               )}
