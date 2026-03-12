@@ -43,7 +43,87 @@ export function useAuthenticatedApi() {
       const token = await getToken();
       return _processFiles(files, query, token);
     },
+    async processFilesStream(
+      files: File[],
+      query: string,
+      onChunk: (partialText: string) => void
+    ) {
+      const token = await getToken();
+      return _processFilesStream(files, query, onChunk, token);
+    },
   };
+}
+
+function buildProcessFormData(files: File[], query: string): FormData {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+  formData.append("query", query);
+  return formData;
+}
+
+function extractResultText(response: any): string {
+  let resultText = "Sorry, I couldn't process your query.";
+
+  if (response && response.response && response.response.result) {
+    resultText = response.response.result;
+  } else if (typeof response === "string") {
+    resultText = response;
+  } else if (response && response.result) {
+    resultText = response.result;
+  } else if (
+    response &&
+    response.response &&
+    typeof response.response === "string"
+  ) {
+    resultText = response.response;
+  } else if (response) {
+    resultText = JSON.stringify(response);
+  }
+
+  return resultText;
+}
+
+function readTextFromChunk(chunk: string): string {
+  const trimmed = chunk.trim();
+
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("data:")) {
+    const payload = trimmed
+      .split("\n")
+      .map((line) => line.replace(/^data:\s?/, ""))
+      .join("\n")
+      .trim();
+
+    if (!payload || payload === "[DONE]") return "";
+
+    try {
+      const parsed = JSON.parse(payload);
+      if (typeof parsed === "string") return parsed;
+      if (parsed?.delta) return String(parsed.delta);
+      if (parsed?.content) return String(parsed.content);
+      if (parsed?.text) return String(parsed.text);
+      if (parsed?.response?.result) return String(parsed.response.result);
+      return "";
+    } catch {
+      return payload;
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed === "string") return parsed;
+    if (parsed?.delta) return String(parsed.delta);
+    if (parsed?.content) return String(parsed.content);
+    if (parsed?.text) return String(parsed.text);
+    if (parsed?.response?.result) return String(parsed.response.result);
+  } catch {
+    // chunk may be plain text token data
+  }
+
+  return trimmed;
 }
 
 /**
@@ -58,16 +138,7 @@ export async function _processFiles(
   query: string,
   token?: string | null
 ) {
-  // Create a FormData object to handle the file uploads
-  const formData = new FormData();
-
-  // Append each file to the FormData
-  files.forEach((file) => {
-    formData.append(`files`, file);
-  });
-
-  // Append the query parameter
-  formData.append("query", query);
+  const formData = buildProcessFormData(files, query);
 
   try {
     console.log(
@@ -79,7 +150,6 @@ export async function _processFiles(
       "/process",
       {
         method: "POST",
-        // Don't set Content-Type header manually; browser will set it correctly with boundary
         body: formData,
       },
       token
@@ -98,6 +168,84 @@ export async function _processFiles(
     console.error("Error processing files:", error);
     throw error;
   }
+}
+
+export async function _processFilesStream(
+  files: File[],
+  query: string,
+  onChunk: (partialText: string) => void,
+  token?: string | null
+): Promise<string> {
+  const formData = buildProcessFormData(files, query);
+
+  const response = await callApi(
+    "/process",
+    {
+      method: "POST",
+      body: formData,
+      headers: {
+        Accept: "text/event-stream, application/x-ndjson, application/json, text/plain",
+      },
+    },
+    token
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Server responded with ${response.status}: ${errorText}`);
+  }
+
+  if (!response.body) {
+    const json = await response.json();
+    const finalText = extractResultText(json);
+    onChunk(finalText);
+    return finalText;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let partial = "";
+  let streamedText = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    partial += decoder.decode(value, { stream: true });
+    const split = partial.split(/\n\n|\r\n\r\n|\n|\r\n/);
+    partial = split.pop() ?? "";
+
+    for (const part of split) {
+      const piece = readTextFromChunk(part);
+      if (piece) {
+        streamedText += piece;
+        onChunk(streamedText);
+      }
+    }
+  }
+
+  partial += decoder.decode();
+  const tail = readTextFromChunk(partial);
+  if (tail) {
+    streamedText += tail;
+    onChunk(streamedText);
+  }
+
+  if (!streamedText.trim()) {
+    try {
+      const parsed = JSON.parse(partial);
+      streamedText = extractResultText(parsed);
+      onChunk(streamedText);
+    } catch {
+      if (partial.trim()) {
+        streamedText = partial.trim();
+        onChunk(streamedText);
+      }
+    }
+  }
+
+  return streamedText;
 }
 
 // Export a non-hook version for compatibility
